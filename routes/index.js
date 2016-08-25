@@ -16,6 +16,50 @@ var _ = require( 'lodash' );
 var mongo = require( 'mongoskin' );
 var toObjectID = mongo.helper.toObjectID;
 
+var mqtt = require('mqtt');
+var client  = mqtt.connect('mqtt://130.230.16.45:1883');
+var mongoURL = process.env.mongourl || 'mongodb://localhost/dms';
+var db = mongo.db( mongoURL, {native_parser:true});
+
+
+client.on('connect', function () {
+  //subscribe to new app descriptions
+  client.subscribe('device/57bee704fb2ccf266063044c/app/descr');
+  
+  //client.publish('device/debug', 'debug', {retain: true});
+  //update certain app
+});
+
+client.on('message', function (topic, message) {
+
+    var app = JSON.parse(message);
+
+    var query = { '_id': toObjectID( '57bee704fb2ccf266063044c' ) };
+    var update = { '$push': { 'apps': app } };
+    var options = { returnOriginal: false };
+    db.collection( 'device' ).findOneAndUpdate( query, update, options, function ( err, result ) {
+        if ( err ) {
+            console.log(err);
+            //res.status( 500 ).send( err );
+            //return;
+        }
+        
+        if ( result.lastErrorObject.n == 0 ) {
+            console.log('Device with id ' + '57bee704fb2ccf266063044c' +' not found.');
+            //return res.status( 404).send( { 'message': 'Device with id ' + '57bee4145b3d4a22dc8fe0f7' +' not found.' } );
+        }
+        
+        if ( !result.lastErrorObject.updatedExisting ) {
+            console.log('Device found but update failed.');
+            //return res.status( 500 ).send( { 'message': 'Device found but update failed.' } );
+        }
+        
+        //res.send( result.value );
+    });
+
+});
+
+
 // Gets the list of devices.
 // can be filtered with a device selector string as a query parameter named q
 router.get('/', function(req, res) {
