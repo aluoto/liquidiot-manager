@@ -39,7 +39,8 @@ client.on('connect', function () {
                 _.each(apps, function (app) {
                     console.log('device/' + device._id + '/apps/' + app.id);
                     client.subscribe('device/' + device._id + '/apps/' + app.id);
-                    client.subscribe('device/' + device._id + '/apps/' + app.id + '/status');
+                    //console.log('device/' + device._id + '/apps/' + app.id + '/status');
+                    //client.subscribe('device/' + device._id + '/apps/' + app.id + '/status');
                 });
             });
         }
@@ -58,6 +59,7 @@ client.on('message', function (topic, message) {
     
     //console.log(JSON.parse(message));
     var app = JSON.parse(message);
+    console.log(app.id);
    
     //this should be about adding a new app?
     if (arrStr.length == 3 && arrStr[2] == 'apps') {
@@ -67,39 +69,85 @@ client.on('message', function (topic, message) {
             return;
         }
 
-        var query = { '_id': toObjectID( deviceId ) };
-        var update = { '$push': { 'apps': app } };
-        var options = { returnOriginal: false };
-        db.collection( 'device' ).findOneAndUpdate( query, update, options, function ( err, result ) {
-            if ( err ) {
-                console.log(err);
-                //res.status( 500 ).send( err );
-                //return;
+        //check if apps already exist
+        db.collection('device').find( { '_id': toObjectID( deviceId ) } ).toArray(function(err, item){
+            if(err){
+                console.log(err.toString());
+            } else {
+                // if we had an app query for each device add a new attribute to the returned document
+                // that will contain only those apps that matched the query
+                console.log(item);
+                if(!_.has(item[0], 'apps') || item[0].apps.length == 0) {
+                    console.log("new app");
+                    //if('apps' in item) { 
+                        console.log(item[0].name);
+
+                    var query = { '_id': toObjectID( deviceId ) };
+                    var update = { '$push': { 'apps': app } };
+                    var options = { returnOriginal: false };
+                    db.collection( 'device' ).findOneAndUpdate( query, update, options, function ( err, result ) {
+                        if ( err ) {
+                            console.log(err);
+                            //res.status( 500 ).send( err );
+                            //return;
+                        }
+                        
+                        if ( result.lastErrorObject.n == 0 ) {
+                            console.log('Device with id ' + deviceId +' not found.');
+                            //return res.status( 404).send( { 'message': 'Device with id ' + id +' not found.' } );
+                        }
+                        
+                        if ( !result.lastErrorObject.updatedExisting ) {
+                            console.log('Device found but update failed.');
+                            //return res.status( 500 ).send( { 'message': 'Device found but update failed.' } );
+                        }
+                    });
+                }
+                else {
+                    console.log("update apps: ");
+                    console.log(app);
+                    var query = { '_id': toObjectID( deviceId ) };
+                    var update = { '$set': { 'apps': app } };
+                    //var update = { '$set': { 'apps': app } };
+                    //var update = { '$push': {'testi': 'testi'} };
+                    
+                    var options = { returnOriginal: false, overwrite: true };
+                    db.collection( 'device' ).findOneAndUpdate( query, update, options, function ( err, result ) {
+                        console.log("result: ");
+                        console.log(result);
+                        console.log(result.value.apps);
+                        if ( err ) {
+                            console.log(err);
+                            //res.status( 500 ).send( err );
+                            //return;
+                        }
+                        /*
+                        if ( result.lastErrorObject.n == 0 ) {
+                            console.log('Device with id ' + deviceId +' not found.');
+                            //return res.status( 404).send( { 'message': 'Device with id ' + id +' not found.' } );
+                        }
+                        
+                        if ( !result.lastErrorObject.updatedExisting ) {
+                            console.log('Device found but update failed.');
+                            //return res.status( 500 ).send( { 'message': 'Device found but update failed.' } );
+                        }*/
+                    });
+
+                }
             }
-            
-            if ( result.lastErrorObject.n == 0 ) {
-                console.log('Device with id ' + deviceId +' not found.');
-                //return res.status( 404).send( { 'message': 'Device with id ' + id +' not found.' } );
-            }
-            
-            if ( !result.lastErrorObject.updatedExisting ) {
-                console.log('Device found but update failed.');
-                //return res.status( 500 ).send( { 'message': 'Device found but update failed.' } );
-            }
-            
-            //res.send( result.value );
         });
     }
     //this should be about updating an app's state?
+    /*
     else if (arrStr.length == 5 && arrStr[2] == 'apps') {
-        
+        console.log("statushommia");
         var appId = null;
         appId = arrStr[3];
-        console.log("apuva: " + appId)
+        
         var query = { '_id': toObjectID( deviceId ), 'apps.id': Number(appId) };
 
         var update = { '$set': { 'apps.$.status': app.status } } ;
-        var options = { returnOriginal: false };
+        var options = { returnOriginal: false, overwrite: true };
 
         db.collection( 'device' ).findOneAndUpdate( query, update, options, function ( err, result ) {
 
@@ -107,16 +155,16 @@ client.on('message', function (topic, message) {
             if ( err ) {
                 console.log(err);
             }
-            /*
-            if ( result.lastErrorObject.n == 0 ) {
-                console.log('message: App with id ' + appId + ' in device with id ' + deviceId +' not found.');
-            }*/
-            /*
-            if ( !result.lastErrorObject.updatedExisting ) {
-                console.log('message: Device found but update failed.');
-            }*/
+            
+            //if ( result.lastErrorObject.n == 0 ) {
+            //    console.log('message: App with id ' + appId + ' in device with id ' + deviceId +' not found.');
+            //}
+            
+            //if ( !result.lastErrorObject.updatedExisting ) {
+            //    console.log('message: Device found but update failed.');
+            //}
         });        
-    }
+    }*/
 
 });
 
