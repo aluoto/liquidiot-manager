@@ -30,8 +30,17 @@ client.on('connect', function () {
         if(err){
             console.log(err.toString());
         } else {
-            _.each( items, function ( device ) {
-                client.subscribe('device/' + device._id + '/app/descr');
+            console.log("listening to: ");
+            _.each(items, function ( device ) {
+                console.log('device/' + device._id + '/apps');
+                client.subscribe('device/' + device._id + '/apps');
+
+                var apps = device.apps;
+                _.each(apps, function (app) {
+                    console.log('device/' + device._id + '/apps/' + app.id);
+                    client.subscribe('device/' + device._id + '/apps/' + app.id);
+                    client.subscribe('device/' + device._id + '/apps/' + app.id + '/status');
+                });
             });
         }
     });
@@ -40,34 +49,74 @@ client.on('connect', function () {
 });
 
 client.on('message', function (topic, message) {
-
-    var app = JSON.parse(message);
+   
     var arrStr = topic.split('/');
-    console.log(arrStr);
-    var id = arrStr[1];
+    console.log("splitted topic: " + arrStr);
+    var deviceId = arrStr[1];
+    
+    console.log(JSON.parse(message));
+    
+    //console.log(JSON.parse(message));
+    var app = JSON.parse(message);
+   
+    //this should be about adding a new app?
+    if (arrStr.length == 3 && arrStr[2] == 'apps') {
 
-    var query = { '_id': toObjectID( id ) };
-    var update = { '$push': { 'apps': app } };
-    var options = { returnOriginal: false };
-    db.collection( 'device' ).findOneAndUpdate( query, update, options, function ( err, result ) {
-        if ( err ) {
-            console.log(err);
-            //res.status( 500 ).send( err );
-            //return;
+        //don't update empty apps
+        if(Array.isArray(app) && app.length == 0) {
+            return;
         }
+
+        var query = { '_id': toObjectID( deviceId ) };
+        var update = { '$push': { 'apps': app } };
+        var options = { returnOriginal: false };
+        db.collection( 'device' ).findOneAndUpdate( query, update, options, function ( err, result ) {
+            if ( err ) {
+                console.log(err);
+                //res.status( 500 ).send( err );
+                //return;
+            }
+            
+            if ( result.lastErrorObject.n == 0 ) {
+                console.log('Device with id ' + deviceId +' not found.');
+                //return res.status( 404).send( { 'message': 'Device with id ' + id +' not found.' } );
+            }
+            
+            if ( !result.lastErrorObject.updatedExisting ) {
+                console.log('Device found but update failed.');
+                //return res.status( 500 ).send( { 'message': 'Device found but update failed.' } );
+            }
+            
+            //res.send( result.value );
+        });
+    }
+    //this should be about updating an app's state?
+    else if (arrStr.length == 5 && arrStr[2] == 'apps') {
         
-        if ( result.lastErrorObject.n == 0 ) {
-            console.log('Device with id ' + id +' not found.');
-            //return res.status( 404).send( { 'message': 'Device with id ' + id +' not found.' } );
-        }
-        
-        if ( !result.lastErrorObject.updatedExisting ) {
-            console.log('Device found but update failed.');
-            //return res.status( 500 ).send( { 'message': 'Device found but update failed.' } );
-        }
-        
-        //res.send( result.value );
-    });
+        var appId = null;
+        appId = arrStr[3];
+        console.log("apuva: " + appId)
+        var query = { '_id': toObjectID( deviceId ), 'apps.id': Number(appId) };
+
+        var update = { '$set': { 'apps.$.status': app.status } } ;
+        var options = { returnOriginal: false };
+
+        db.collection( 'device' ).findOneAndUpdate( query, update, options, function ( err, result ) {
+
+            console.log(result);
+            if ( err ) {
+                console.log(err);
+            }
+            /*
+            if ( result.lastErrorObject.n == 0 ) {
+                console.log('message: App with id ' + appId + ' in device with id ' + deviceId +' not found.');
+            }*/
+            /*
+            if ( !result.lastErrorObject.updatedExisting ) {
+                console.log('message: Device found but update failed.');
+            }*/
+        });        
+    }
 
 });
 
