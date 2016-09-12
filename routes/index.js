@@ -90,7 +90,7 @@ client.on('message', function (topic, message) {
                 console.log("inserted id: ");
                 console.log(result.insertedIds[0]);
                 client.publish('device/idfromdm', result.insertedIds[0].toString());
-
+                client.subscribe('device/' + result.insertedIds[0].toString() + '/apps');
             }
         });
             
