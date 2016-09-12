@@ -24,6 +24,9 @@ var db = mongo.db( mongoURL, {native_parser:true});
 
 client.on('connect', function () {
 
+    //subscribe to new devices
+    client.subscribe('device');
+
     //Subscribe to new app descriptions.
     //Get registered devices from the db.
     db.collection('device').find( {} ).toArray(function(err, items){
@@ -50,6 +53,50 @@ client.on('connect', function () {
 });
 
 client.on('message', function (topic, message) {
+
+    if(topic === 'device') {
+        // add a device
+        console.log("add device with mqtt");
+
+        var device = JSON.parse(message.toString());
+        device.classes = []; // an array for device classes
+    
+        // go through the connected devices if any and add
+        // classes that correspond to the device type e.g. if device has a speaker
+        // add class canPlaySound.
+        // also add connected device's information as attributes
+        // for example if speaker has a model adds that as an attribute named speaker-model
+        if ( device['connected-devices'] ) {
+           _.each( device['connected-devices'], function ( deviceAttrs, deviceType ) {
+              // contains the mapping information between device types and classes
+              var deviceType2class = {
+                 speaker: 'canPlaySound',
+                 'temp-sensor': 'canMeasureTemperature'
+              };
+              
+              if ( deviceType2class[deviceType] ) {
+                 device.classes.push( deviceType2class[deviceType] );
+                 _.each( deviceAttrs, function ( value, deviceAttrName ) {
+                    device[ deviceType +'-' +deviceAttrName ] = value;
+                 });
+              }
+           });
+        }
+        
+        db.collection('device').insert(device, function(err, result){
+            if(err){
+                console.log(err.toString());
+            } else {
+                console.log("inserted id: ");
+                console.log(result.insertedIds[0]);
+                client.publish('device/idfromdm', result.insertedIds[0].toString());
+
+            }
+        });
+            
+        return;
+    }
+
    
     var arrStr = topic.split('/');
     console.log("splitted topic: " + arrStr + "--------------------------------------");
@@ -61,6 +108,7 @@ client.on('message', function (topic, message) {
     var app = JSON.parse(message);
     console.log(app.id);
    
+
     //this should be about adding a new app?
     if (arrStr.length == 3 && arrStr[2] == 'apps') {
 
@@ -71,7 +119,7 @@ client.on('message', function (topic, message) {
         }
 
         //check if apps already exist
-        db.collection('device').find( { '_id': toObjectID( deviceId ) } ).toArray(function(err, item){
+        db.collection('device').find( { '_id': toObjectID( deviceId ) } ).toArray(function(err, item) {
             if(err){
                 console.log(err.toString());
             } else {
@@ -227,6 +275,9 @@ router.get('/', function(req, res) {
 
 // add a device
 router.post('/', function(req, res){
+    
+    console.log("add device");
+
     var db = req.db;
     console.log(typeof(req.body) + " : " + JSON.stringify(req.body));
     var device = req.body;
