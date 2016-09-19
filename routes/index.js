@@ -25,7 +25,7 @@ var db = mongo.db( mongoURL, {native_parser:true});
 client.on('connect', function () {
 
     //subscribe to new devices
-    client.subscribe('device');
+    client.subscribe('device/request/+');
 
     //Subscribe to new app descriptions.
     //Get registered devices from the db.
@@ -54,7 +54,10 @@ client.on('connect', function () {
 
 client.on('message', function (topic, message) {
 
-    if(topic === 'device') {
+    var arrStr = topic.split('/');
+    console.log("splitted topic: " + arrStr + "--------------------------------------");
+    console.log(topic.substr(0,13));
+    if(topic.substr(0,14) === 'device/request') {
         // add a device
         console.log("add device with mqtt");
 
@@ -89,7 +92,8 @@ client.on('message', function (topic, message) {
             } else {
                 console.log("inserted id: ");
                 console.log(result.insertedIds[0]);
-                client.publish('device/idfromdm', result.insertedIds[0].toString());
+                console.log(arrStr[2]);
+                client.publish('device/reply/' + arrStr[2], result.insertedIds[0].toString());
                 client.subscribe('device/' + result.insertedIds[0].toString() + '/apps');
             }
         });
@@ -98,8 +102,7 @@ client.on('message', function (topic, message) {
     }
 
    
-    var arrStr = topic.split('/');
-    console.log("splitted topic: " + arrStr + "--------------------------------------");
+
     var deviceId = arrStr[1];
     
     console.log(JSON.parse(message));
