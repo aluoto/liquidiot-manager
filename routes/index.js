@@ -37,14 +37,15 @@ client.on('connect', function () {
             _.each(items, function ( device ) {
                 console.log('device/' + device._id + '/apps');
                 client.subscribe('device/' + device._id + '/apps');
+                client.subscribe('device/' + device._id + '/apps/+');
 
-                var apps = device.apps;
-                _.each(apps, function (app) {
-                    console.log('device/' + device._id + '/apps/' + app.id);
-                    client.subscribe('device/' + device._id + '/apps/' + app.id);
+                //var apps = device.apps;
+                //_.each(apps, function (app) {
+                //    console.log('device/' + device._id + '/apps/' + app.id);
+                //    client.subscribe('device/' + device._id + '/apps/' + app.id);
                     //console.log('device/' + device._id + '/apps/' + app.id + '/status');
                     //client.subscribe('device/' + device._id + '/apps/' + app.id + '/status');
-                });
+                //});
             });
         }
     });
@@ -56,7 +57,7 @@ client.on('message', function (topic, message) {
 
     var arrStr = topic.split('/');
     console.log("splitted topic: " + arrStr + "--------------------------------------");
-    console.log(topic.substr(0,13));
+    
     if(topic.substr(0,14) === 'device/request') {
         // add a device
         console.log("add device with mqtt");
@@ -113,7 +114,8 @@ client.on('message', function (topic, message) {
    
 
     //this should be about adding a new app?
-    if (arrStr.length == 3 && arrStr[2] == 'apps') {
+    //if (arrStr.length == 3 && arrStr[2] == 'apps') {
+    if (arrStr[2] == 'apps') {    
 
         //don't update empty apps - if message was empty array
         //if all apps are removed then this could be bad
@@ -137,7 +139,8 @@ client.on('message', function (topic, message) {
                         console.log("iteraatio: " + i);
                         console.log(item[0].apps[i].id);
                         console.log(app.id);
-                        if(item[0].apps[i].id == app.id) {
+                        //if(item[0].apps[i].id == app.id) {
+                        if(item[0].apps[i].id == arrStr[3]) {
                             newApp = false;
                             console.log("update apps: ");
 
@@ -161,12 +164,15 @@ client.on('message', function (topic, message) {
                     }
                 }
 
+                //didn't find apps
                 if(!_.has(item[0], 'apps') || newApp)
                 {
                     console.log("new app");
                     //if('apps' in item) { 
                     console.log(item[0].name);
 
+                    client.subscribe('device/' + deviceId + '/apps/' + app.id );
+                    
                     var query = { '_id': toObjectID( deviceId ) };
                     var update = { '$push': { 'apps': app } };
                     var options = { returnOriginal: false };
