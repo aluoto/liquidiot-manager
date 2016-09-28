@@ -17,7 +17,7 @@ var mongo = require( 'mongoskin' );
 var toObjectID = mongo.helper.toObjectID;
 
 var mqtt = require('mqtt');
-var client  = mqtt.connect('mqtt://130.230.16.45:1883');
+var client  = mqtt.connect('mqtt://130.230.142.101:1883');
 var mongoURL = process.env.mongourl || 'mongodb://localhost/dms';
 var db = mongo.db( mongoURL, {native_parser:true});
 
@@ -94,7 +94,7 @@ client.on('message', function (topic, message) {
                 console.log("inserted id: ");
                 console.log(result.insertedIds[0]);
                 console.log(arrStr[2]);
-                client.publish('device/reply/' + arrStr[2], result.insertedIds[0].toString());
+                client.publish('device/reply/' + arrStr[2], result.insertedIds[0].toString(), {retain: true});
                 client.subscribe('device/' + result.insertedIds[0].toString() + '/apps');
             }
         });
